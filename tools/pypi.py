@@ -1,3 +1,14 @@
+"""
+PyPI Package Index Fetcher Module.
+
+This module provides functionality to fetch and parse the PyPI (Python Package Index) 
+simple repository index. It retrieves a list of all available packages from PyPI's 
+simple index page and parses them into structured data objects.
+
+The module can be used as a library or run as a standalone script to display 
+statistics about available PyPI packages.
+"""
+
 from dataclasses import dataclass
 from typing import Optional, List
 from urllib.parse import urljoin
@@ -10,11 +21,45 @@ DEFAULT_INDEX_URL = 'https://pypi.org/simple'
 
 @dataclass
 class PypiItem:
+    """
+    Data class representing a PyPI package item.
+    
+    :param name: The name of the PyPI package.
+    :type name: str
+    :param url: The URL to the package's simple index page.
+    :type url: str
+    """
     name: str
     url: str
 
 
 def get_pypi_index(index_url: Optional[str] = None) -> List[PypiItem]:
+    """
+    Fetch and parse the PyPI simple index to retrieve all available packages.
+    
+    This function sends an HTTP GET request to the PyPI simple index URL,
+    parses the HTML response, and extracts all package names and their
+    corresponding URLs.
+    
+    :param index_url: The PyPI simple index URL to fetch from. If None, uses the default PyPI URL.
+    :type index_url: Optional[str]
+    
+    :return: A list of PypiItem objects containing package names and URLs.
+    :rtype: List[PypiItem]
+    
+    :raises requests.exceptions.HTTPError: If the HTTP request fails.
+    :raises requests.exceptions.RequestException: If there are network-related errors.
+    
+    Example::
+        >>> packages = get_pypi_index()
+        >>> print(packages[0])
+        PypiItem(name='0', url='https://pypi.org/simple/0/')
+        
+        >>> # Use a custom index URL
+        >>> packages = get_pypi_index('https://test.pypi.org/simple')
+        >>> print(len(packages))
+        5000
+    """
     index_url = index_url or DEFAULT_INDEX_URL
     resp = requests.get(index_url)
     resp.raise_for_status()
