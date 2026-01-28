@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Optional, List
 from urllib.parse import urljoin
 
+import requests
 from pyquery import PyQuery as pq
 
 from .utils import get_requests_session
@@ -34,7 +35,7 @@ class PypiItem:
     url: str
 
 
-def get_pypi_index(index_url: Optional[str] = None) -> List[PypiItem]:
+def get_pypi_index(index_url: Optional[str] = None, session: Optional[requests.Session] = None) -> List[PypiItem]:
     """
     Fetch and parse the PyPI simple index to retrieve all available packages.
     
@@ -44,6 +45,8 @@ def get_pypi_index(index_url: Optional[str] = None) -> List[PypiItem]:
     
     :param index_url: The PyPI simple index URL to fetch from. If None, uses the default PyPI URL.
     :type index_url: Optional[str]
+    :param session: Optional requests session to use for the HTTP request. If None, creates a new session.
+    :type session: Optional[requests.Session]
     
     :return: A list of PypiItem objects containing package names and URLs.
     :rtype: List[PypiItem]
@@ -62,7 +65,8 @@ def get_pypi_index(index_url: Optional[str] = None) -> List[PypiItem]:
         5000
     """
     index_url = index_url or DEFAULT_INDEX_URL
-    resp = get_requests_session().get(index_url)
+    session = session or get_requests_session()
+    resp = session.get(index_url)
     resp.raise_for_status()
 
     page = pq(resp.text)
