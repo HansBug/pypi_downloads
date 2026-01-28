@@ -13,8 +13,9 @@ from dataclasses import dataclass
 from typing import Optional, List
 from urllib.parse import urljoin
 
-import requests
 from pyquery import PyQuery as pq
+
+from .utils import get_requests_session
 
 DEFAULT_INDEX_URL = 'https://pypi.org/simple'
 
@@ -61,7 +62,7 @@ def get_pypi_index(index_url: Optional[str] = None) -> List[PypiItem]:
         5000
     """
     index_url = index_url or DEFAULT_INDEX_URL
-    resp = requests.get(index_url)
+    resp = get_requests_session().get(index_url)
     resp.raise_for_status()
 
     page = pq(resp.text)
