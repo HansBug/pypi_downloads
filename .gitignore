@@ -1209,9 +1209,9 @@ fabric.properties
 !/docs/source/_static/**/*
 /docs/source/**/*.result.ipynb
 /cartpole_dqn_*
-/hfutils/**/*.json
-/hfutils/**/*.yaml
-/hfutils/**/*.yml
+/pypi_downloads/**/*.json
+/pypi_downloads/**/*.yaml
+/pypi_downloads/**/*.yml
 /extra
 /resource/yolort/*
 !/resource/yolort/Makefile
@@ -1224,6 +1224,6 @@ fabric.properties
 /runs
 /YOLOv8
 .benchmarks
-!/hfutils/utils/irregular_repo.json
+!/pypi_downloads/utils/irregular_repo.json
 /venv*
 /.env*
