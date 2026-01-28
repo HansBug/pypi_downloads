@@ -14,7 +14,7 @@ import requests
 from ..utils import get_requests_session
 
 
-def get_pypistats_recent(name: str, session: Optional[requests.Session] = None) -> dict:
+def get_pypistats_recent(name: str, session: Optional[requests.Session] = None) -> Optional[dict]:
     """
     Get recent download statistics for a PyPI package.
 
@@ -62,8 +62,11 @@ def get_pypistats_recent(name: str, session: Optional[requests.Session] = None) 
     """
     session = session or get_requests_session()
     resp = session.get(f'https://pypistats.org/api/packages/{name}/recent')
-    resp.raise_for_status()
-    return resp.json()
+    if resp.status_code == 404:
+        return None
+    else:
+        resp.raise_for_status()
+        return resp.json()
 
 
 if __name__ == '__main__':
