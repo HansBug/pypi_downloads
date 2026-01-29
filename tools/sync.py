@@ -56,7 +56,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
-        has_is_empty = 'is_empty' in df.columns
+        has_status = 'status' in df.columns
     elif hf_client.file_exists(
             repo_id=repository,
             repo_type='dataset',
@@ -71,12 +71,12 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
-        has_is_empty = 'is_empty' in df.columns
+        has_status = 'status' in df.columns
     else:
         logging.info(f'No existing file found.')
         names = set()
         records = []
-        has_is_empty = False
+        has_status = False
 
     for name, item in d_index.items():
         if name not in names:
@@ -86,17 +86,17 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 'last_day': None,
                 'last_month': None,
                 'last_week': None,
-                'is_empty': None,
+                'status': None,
                 'updated_at': None,
             })
 
     d_records = {item['name']: item for item in records}
 
     df_x = pd.DataFrame(records)
-    if not has_is_empty:
-        df_x['is_empty'] = None
-        df_x.loc[~df_x['updated_at'].isnull(), 'is_empty'] = True
-        df_x.loc[~df_x['last_month'].isnull(), 'is_empty'] = False
+    if not has_status:
+        df_x['status'] = None
+        df_x.loc[~df_x['updated_at'].isnull(), 'status'] = 'empty'
+        df_x.loc[~df_x['last_month'].isnull(), 'status'] = 'valid'
 
     df_x = df_x[
         df_x['updated_at'].isnull() |
@@ -151,7 +151,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 total_rows = len(df)
                 df_notna = df[df['updated_at'].notna()]
                 updated_rows = len(df_notna)
-                df_non_empty = df_notna[(~df_notna['is_empty']) & df_notna['updated_at'].notna()]
+                df_non_empty = df_notna[df_notna['status'] == 'valid']
                 non_empty_rows = len(df_non_empty)
 
                 print('## Dataset Overview', file=f)
@@ -172,14 +172,14 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 print('| last_day | integer | Downloads in the last day |', file=f)
                 print('| last_week | integer | Downloads in the last week |', file=f)
                 print('| last_month | integer | Downloads in the last month |', file=f)
-                print('| is_empty | boolean | Whether the package has no download data |', file=f)
+                print('| status | string | Whether the package has no download data (null, empty, valid) |', file=f)
                 print('| updated_at | float | Unix timestamp of last update |', file=f)
                 print('', file=f)
 
                 # Sample data
                 print('## Sample Data', file=f)
                 print('', file=f)
-                sample_df = df_non_empty.head(20)[['name', 'last_day', 'last_week', 'last_month', 'is_empty']]
+                sample_df = df_non_empty.head(20)[['name', 'last_day', 'last_week', 'last_month', 'status']]
                 print('First 20 packages:', file=f)
                 print('', file=f)
                 print(sample_df.to_markdown(index=False), file=f)
@@ -241,12 +241,12 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
             d_records[pypi_name]['last_day'] = None
             d_records[pypi_name]['last_week'] = None
             d_records[pypi_name]['last_month'] = None
-            d_records[pypi_name]['is_empty'] = True
+            d_records[pypi_name]['status'] = 'empty'
         else:
             d_records[pypi_name]['last_day'] = data['data']['last_day']
             d_records[pypi_name]['last_week'] = data['data']['last_week']
             d_records[pypi_name]['last_month'] = data['data']['last_month']
-            d_records[pypi_name]['is_empty'] = False
+            d_records[pypi_name]['status'] = 'valid'
         d_records[pypi_name]['updated_at'] = updated_at
 
         with lock:
