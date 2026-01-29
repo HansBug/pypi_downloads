@@ -4,10 +4,12 @@ import time
 from threading import Lock
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from hbutils.concurrent import parallel_call
 from hbutils.logging import ColoredFormatter
+from hbutils.system import TemporaryDirectory
+from hfutils.operate import get_hf_client, get_hf_fs, upload_directory_as_directory
+from hfutils.utils import number_to_tag
 from natsort import natsorted
 
 from .pypi import get_pypi_index
@@ -15,7 +17,20 @@ from .pypistats.recent import get_pypistats_recent
 from .utils import get_requests_session
 
 
-def sync(dst_file: str, proxy_pool: Optional[str] = None, deploy_span: float = 5 * 60):
+def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float = 5 * 60):
+    hf_client = get_hf_client()
+    hf_fs = get_hf_fs()
+
+    if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
+        hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
+        attr_lines = hf_fs.read_text(f'datasets/{repository}/.gitattributes').splitlines(keepends=False)
+        attr_lines.append('*.json filter=lfs diff=lfs merge=lfs -text')
+        attr_lines.append('*.csv filter=lfs diff=lfs merge=lfs -text')
+        hf_fs.write_text(
+            f'datasets/{repository}/.gitattributes',
+            os.linesep.join(attr_lines),
+        )
+
     session = get_requests_session()
     if proxy_pool:
         logging.info(f'Proxy pool {proxy_pool!r} enabled.')
@@ -27,9 +42,17 @@ def sync(dst_file: str, proxy_pool: Optional[str] = None, deploy_span: float = 5
     logging.info('Getting index ...')
     d_index = {item.name: item for item in get_pypi_index(session=session)}
 
-    if os.path.exists(dst_file):
-        logging.info(f'Load from {dst_file!r} ...')
-        df = pd.read_csv(dst_file).replace(np.nan, None)
+    if hf_client.file_exists(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='dataset.parquet'
+    ):
+        logging.info('Load from repository ...')
+        df = pd.read_parquet(hf_client.hf_hub_download(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='dataset.parquet'
+        ))
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
@@ -72,10 +95,74 @@ def sync(dst_file: str, proxy_pool: Optional[str] = None, deploy_span: float = 5
         if not force and last_saved_at is not None and last_saved_at + deploy_span > time.time():
             return
 
-        logging.info(f'Saving to {dst_file}')
-        df = pd.DataFrame(list(d_records.values()))
-        df = df.sort_values(by=['name'], ascending=[True])
-        df.to_csv(dst_file, index=False)
+        with TemporaryDirectory() as upload_dir:
+            dst_parquet_file = os.path.join(upload_dir, 'table.parquet')
+            logging.info(f'Saving to {dst_parquet_file}')
+            df = pd.DataFrame(list(d_records.values()))
+            df = df.sort_values(by=['name'], ascending=[True])
+            df.to_parquet(dst_parquet_file, index=False)
+
+            with open(os.path.join(upload_dir, 'README.md'), 'w') as f:
+                print('---', file=f)
+                print('license: apache-2.0', file=f)
+                print('language:', file=f)
+                print('- en', file=f)
+                print('tags:', file=f)
+                print('- python', file=f)
+                print('- code', file=f)
+                print('- downloads', file=f)
+                print('- pypistats', file=f)
+                print('size_categories:', file=f)
+                print(f'- {number_to_tag(len(df))}', file=f)
+                print('source_datasets:', file=f)
+                print('- pypistats', file=f)
+                print('---', file=f)
+                print('', file=f)
+
+                print('TODO: description.')
+
+                print('TODO: make a better README to show my data, the df is really large, which should contain 0.73m rows. '
+                      'I think we should show: '
+                      '(1) total rows of this data'
+                      '(2) rows and content and meaning'
+                      '(3) how many rows in total, how many rows with data (updated_at is not null), how many non-empty rows.'
+                      '(4) show some sample data and top data, each approx 20 rows'
+                      '(5) show some interesting statistics of those non-empty data.')
+
+                print('## Records', file=f)
+                print(f'', file=f)
+                df_records_shown = df_records[:50][
+                    ['id', 'width', 'height', 'nsfw_level', 'mimetype', 'url', 'created_at']]
+                print(f'{plural_word(len(exist_ids), "record")} in total. '
+                      f'Only {plural_word(len(df_records_shown), "record")} shown.', file=f)
+                print(f'', file=f)
+                print(df_records_shown.to_markdown(index=False), file=f)
+                print(f'', file=f)
+                print(f'## Tags', file=f)
+                print(f'', file=f)
+                df_top_tag_ids = df_tags[(df_tags['type'] != 'Moderation') & (~df_tags['is_category'])][:50]['id']
+                df_tags_shown = df_tags[(df_tags['type'] == 'Moderation') |
+                                        df_tags['is_category'] | df_tags['id'].isin(df_top_tag_ids)]
+                df_tags_shown['is_mod'] = df_tags['type'] == 'Moderation'
+                df_tags_shown = df_tags_shown.sort_values(
+                    ['is_mod', 'is_category', 'count', 'id'],
+                    ascending=[False, False, False, True],
+                )
+                del df_tags_shown['is_mod']
+                print(f'{plural_word(len(df_tags), "tag")} in total. '
+                      f'Only {plural_word(len(df_tags_shown), "tag")} shown.', file=f)
+                print(f'', file=f)
+                print(df_tags_shown.to_markdown(index=False), file=f)
+                print('', file=f)
+
+            upload_directory_as_directory(
+                repo_id=repository,
+                repo_type='dataset',
+                local_directory=upload_dir,
+                path_in_repo='.',
+                message='TODO: show this message'
+            )
+
         has_update = False
         last_saved_at = time.time()
 

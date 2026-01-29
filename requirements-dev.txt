@@ -5,3 +5,4 @@ sphinx>=3.2.0
 natsort
 pyquery
 random_user_agent
+hfutils
