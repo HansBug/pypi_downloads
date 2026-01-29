@@ -46,14 +46,17 @@ def sync(dst_file: str, proxy_pool: Optional[str] = None, deploy_span: float = 5
                 'last_day': None,
                 'last_month': None,
                 'last_week': None,
+                'is_empty': None,
                 'updated_at': None,
             })
 
     d_records = {item['name']: item for item in records}
 
     df_x = pd.DataFrame(records)
+    if 'is_empty' not in df_x.columns:
+        df_x['is_empty'] = None
     df_x = df_x[
-        df_x['last_month'].isnull() |
+        df_x['updated_at'].isnull() |
         (~df_x['updated_at'].isnull() & (df_x['updated_at'] + 30 * 86400 < time.time()))
         ]
     logging.info(f'Records to refresh:\n{df_x}')
@@ -82,11 +85,15 @@ def sync(dst_file: str, proxy_pool: Optional[str] = None, deploy_span: float = 5
         data = get_pypistats_recent(pypi_name, session=session)
         if not data:
             logging.warning(f'No data found for {pypi_name!r}, skipped.')
-            return
-
-        d_records[pypi_name]['last_day'] = data['data']['last_day']
-        d_records[pypi_name]['last_week'] = data['data']['last_week']
-        d_records[pypi_name]['last_month'] = data['data']['last_month']
+            d_records[pypi_name]['last_day'] = None
+            d_records[pypi_name]['last_week'] = None
+            d_records[pypi_name]['last_month'] = None
+            d_records[pypi_name]['is_empty'] = True
+        else:
+            d_records[pypi_name]['last_day'] = data['data']['last_day']
+            d_records[pypi_name]['last_week'] = data['data']['last_week']
+            d_records[pypi_name]['last_month'] = data['data']['last_month']
+            d_records[pypi_name]['is_empty'] = False
         d_records[pypi_name]['updated_at'] = updated_at
 
         with lock:
