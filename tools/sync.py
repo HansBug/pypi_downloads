@@ -92,8 +92,8 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
     df_x = pd.DataFrame(records)
     if 'is_empty' not in df_x.columns:
         df_x['is_empty'] = None
-        df_x[~df_x['updated_at'].isnull()] = True
-        df_x[~df_x['last_month'].isnull()] = False
+        df_x[~df_x['updated_at'].isnull()]['is_empty'] = True
+        df_x[~df_x['last_month'].isnull()]['is_empty'] = False
 
     df_x = df_x[
         df_x['updated_at'].isnull() |
