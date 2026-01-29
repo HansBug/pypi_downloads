@@ -110,7 +110,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
             return
 
         with TemporaryDirectory() as upload_dir:
-            dst_parquet_file = os.path.join(upload_dir, 'table.parquet')
+            dst_parquet_file = os.path.join(upload_dir, 'dataset.parquet')
             logging.info(f'Saving to {dst_parquet_file}')
             df = pd.DataFrame(list(d_records.values()))
             df = df.sort_values(by=['name'], ascending=[True])
