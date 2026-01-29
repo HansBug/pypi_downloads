@@ -56,6 +56,20 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
+    elif hf_client.file_exists(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='dataset.csv'
+    ):
+        logging.info('Load from repository ...')
+        df = pd.read_csv(hf_client.hf_hub_download(
+            repo_id=repository,
+            repo_type='dataset',
+            filename='dataset.csv'
+        ))
+        df = df[df['name'].isin(d_index)]
+        names = set(df['name'])
+        records = df.to_dict('records')
     else:
         logging.info(f'No existing file found.')
         names = set()
@@ -203,7 +217,8 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 repo_type='dataset',
                 local_directory=upload_dir,
                 path_in_repo='.',
-                message=f'Update PyPI - {total_rows:,} packages, {non_empty_rows:,} with data'
+                message=f'Update PyPI - {total_rows:,} packages, {non_empty_rows:,} with data',
+                clear=True,
             )
 
         has_update = False
@@ -248,6 +263,6 @@ if __name__ == '__main__':
     logger.addHandler(console_handler)
 
     sync(
-        dst_file='pypi_downloads/data.csv',
+        repository='HansBug/pypi_downloads',
         proxy_pool=os.environ['PP_URL']
     )
