@@ -152,14 +152,15 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 # Dataset overview
                 total_rows = len(df)
                 df_notna = df[df['updated_at'].notna()]
-                updated_rows = len(df_notna)
+                with_data_rows = len(df_notna)
                 df_non_empty = df_notna[df_notna['status'] == 'valid']
                 non_empty_rows = len(df_non_empty)
 
                 print('## Dataset Overview', file=f)
                 print('', file=f)
                 print(f'- **Total packages**: {total_rows:,}', file=f)
-                print(f'- **Packages with data**: {updated_rows:,} ({updated_rows / total_rows * 100:.1f}%)', file=f)
+                print(f'- **Packages with data**: {with_data_rows:,} ({with_data_rows / total_rows * 100:.1f}%)',
+                      file=f)
                 print(f'- **Non-empty packages**: {non_empty_rows:,} ({non_empty_rows / total_rows * 100:.1f}%)',
                       file=f)
                 print('', file=f)
@@ -227,7 +228,9 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 repo_type='dataset',
                 local_directory=upload_dir,
                 path_in_repo='.',
-                message=f'Update PyPI - {total_rows:,} packages, {non_empty_rows:,} with data',
+                message=f'Update PyPI - {total_rows:,} packages, '
+                        f'{with_data_rows:,} ({with_data_rows / total_rows * 100:.1f}%) with data, '
+                        f'{non_empty_rows:,} ({non_empty_rows / total_rows * 100:.1f}%) non empty',
                 clear=True,
             )
 
