@@ -119,48 +119,91 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 print('---', file=f)
                 print('', file=f)
 
-                print('TODO: description.')
-
-                print('TODO: make a better README to show my data, the df is really large, which should contain 0.73m rows. '
-                      'I think we should show: '
-                      '(1) total rows of this data'
-                      '(2) rows and content and meaning'
-                      '(3) how many rows in total, how many rows with data (updated_at is not null), how many non-empty rows.'
-                      '(4) show some sample data and top data, each approx 20 rows'
-                      '(5) show some interesting statistics of those non-empty data.')
-
-                print('## Records', file=f)
-                print(f'', file=f)
-                df_records_shown = df_records[:50][
-                    ['id', 'width', 'height', 'nsfw_level', 'mimetype', 'url', 'created_at']]
-                print(f'{plural_word(len(exist_ids), "record")} in total. '
-                      f'Only {plural_word(len(df_records_shown), "record")} shown.', file=f)
-                print(f'', file=f)
-                print(df_records_shown.to_markdown(index=False), file=f)
-                print(f'', file=f)
-                print(f'## Tags', file=f)
-                print(f'', file=f)
-                df_top_tag_ids = df_tags[(df_tags['type'] != 'Moderation') & (~df_tags['is_category'])][:50]['id']
-                df_tags_shown = df_tags[(df_tags['type'] == 'Moderation') |
-                                        df_tags['is_category'] | df_tags['id'].isin(df_top_tag_ids)]
-                df_tags_shown['is_mod'] = df_tags['type'] == 'Moderation'
-                df_tags_shown = df_tags_shown.sort_values(
-                    ['is_mod', 'is_category', 'count', 'id'],
-                    ascending=[False, False, False, True],
-                )
-                del df_tags_shown['is_mod']
-                print(f'{plural_word(len(df_tags), "tag")} in total. '
-                      f'Only {plural_word(len(df_tags_shown), "tag")} shown.', file=f)
-                print(f'', file=f)
-                print(df_tags_shown.to_markdown(index=False), file=f)
+                # Description
+                print('# PyPI Download Statistics Dataset', file=f)
                 print('', file=f)
+                print('This dataset contains download statistics for Python packages from PyPI (Python Package Index). '
+                      'The data is collected from pypistats and includes recent download counts for packages, '
+                      'providing insights into package popularity and usage trends.', file=f)
+                print('', file=f)
+
+                # Dataset overview
+                total_rows = len(df)
+                updated_rows = len(df[df['updated_at'].notna()])
+                non_empty_rows = len(df[(~df['is_empty']) & df['updated_at'].notna()])
+
+                print('## Dataset Overview', file=f)
+                print('', file=f)
+                print(f'- **Total packages**: {total_rows:,}', file=f)
+                print(f'- **Packages with data**: {updated_rows:,} ({updated_rows / total_rows * 100:.1f}%)', file=f)
+                print(f'- **Non-empty packages**: {non_empty_rows:,} ({non_empty_rows / total_rows * 100:.1f}%)',
+                      file=f)
+                print('', file=f)
+
+                # Schema description
+                print('## Schema', file=f)
+                print('', file=f)
+                print('| Column | Type | Description |', file=f)
+                print('|--------|------|-------------|', file=f)
+                print('| name | string | Package name on PyPI |', file=f)
+                print('| url | string | PyPI package URL |', file=f)
+                print('| last_day | integer | Downloads in the last day |', file=f)
+                print('| last_week | integer | Downloads in the last week |', file=f)
+                print('| last_month | integer | Downloads in the last month |', file=f)
+                print('| is_empty | boolean | Whether the package has no download data |', file=f)
+                print('| updated_at | float | Unix timestamp of last update |', file=f)
+                print('', file=f)
+
+                # Sample data
+                print('## Sample Data', file=f)
+                print('', file=f)
+                sample_df = df.head(20)[['name', 'last_day', 'last_week', 'last_month', 'is_empty']]
+                print('First 20 packages:', file=f)
+                print('', file=f)
+                print(sample_df.to_markdown(index=False), file=f)
+                print('', file=f)
+
+                # Top packages by downloads
+                if non_empty_rows > 0:
+                    top_df = df[(~df['is_empty']) & df['updated_at'].notna()].nlargest(20, 'last_month')[
+                        ['name', 'last_day', 'last_week', 'last_month']]
+                    print('## Top 20 Packages by Monthly Downloads', file=f)
+                    print('', file=f)
+                    print(top_df.to_markdown(index=False), file=f)
+                    print('', file=f)
+
+                    # Statistics
+                    stats_df = df[(~df['is_empty']) & df['updated_at'].notna()]
+                    if len(stats_df) > 0:
+                        print('## Download Statistics', file=f)
+                        print('', file=f)
+                        print('### Monthly Downloads', file=f)
+                        print(f'- **Total**: {stats_df["last_month"].sum():,}', file=f)
+                        print(f'- **Average**: {stats_df["last_month"].mean():.0f}', file=f)
+                        print(f'- **Median**: {stats_df["last_month"].median():.0f}', file=f)
+                        print(f'- **Max**: {stats_df["last_month"].max():,}', file=f)
+                        print('', file=f)
+
+                        print('### Weekly Downloads', file=f)
+                        print(f'- **Total**: {stats_df["last_week"].sum():,}', file=f)
+                        print(f'- **Average**: {stats_df["last_week"].mean():.0f}', file=f)
+                        print(f'- **Median**: {stats_df["last_week"].median():.0f}', file=f)
+                        print(f'- **Max**: {stats_df["last_week"].max():,}', file=f)
+                        print('', file=f)
+
+                        print('### Daily Downloads', file=f)
+                        print(f'- **Total**: {stats_df["last_day"].sum():,}', file=f)
+                        print(f'- **Average**: {stats_df["last_day"].mean():.0f}', file=f)
+                        print(f'- **Median**: {stats_df["last_day"].median():.0f}', file=f)
+                        print(f'- **Max**: {stats_df["last_day"].max():,}', file=f)
+                        print('', file=f)
 
             upload_directory_as_directory(
                 repo_id=repository,
                 repo_type='dataset',
                 local_directory=upload_dir,
                 path_in_repo='.',
-                message='TODO: show this message'
+                message=f'Update PyPI - {total_rows:,} packages, {non_empty_rows:,} with data'
             )
 
         has_update = False
