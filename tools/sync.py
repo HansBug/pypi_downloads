@@ -4,6 +4,7 @@ import time
 from threading import Lock
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from hbutils.concurrent import parallel_call
 from hbutils.logging import ColoredFormatter
@@ -98,6 +99,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df_x.loc[~df_x['updated_at'].isnull(), 'status'] = 'empty'
         df_x.loc[~df_x['last_month'].isnull(), 'status'] = 'valid'
 
+    d_records = {item['name']: item for item in df_x.replace(np.nan, None).to_dict('records')}
     df_x = df_x[
         df_x['updated_at'].isnull() |
         (~df_x['updated_at'].isnull() & (df_x['updated_at'] + 30 * 86400 < time.time()))
