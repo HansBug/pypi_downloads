@@ -56,6 +56,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
+        has_is_empty = 'is_empty' in df.columns
     elif hf_client.file_exists(
             repo_id=repository,
             repo_type='dataset',
@@ -70,10 +71,12 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
         df = df[df['name'].isin(d_index)]
         names = set(df['name'])
         records = df.to_dict('records')
+        has_is_empty = 'is_empty' in df.columns
     else:
         logging.info(f'No existing file found.')
         names = set()
         records = []
+        has_is_empty = False
 
     for name, item in d_index.items():
         if name not in names:
@@ -90,10 +93,10 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
     d_records = {item['name']: item for item in records}
 
     df_x = pd.DataFrame(records)
-    if 'is_empty' not in df_x.columns:
+    if not has_is_empty:
         df_x['is_empty'] = None
-        df_x[~df_x['updated_at'].isnull()]['is_empty'] = True
-        df_x[~df_x['last_month'].isnull()]['is_empty'] = False
+        df_x.loc[~df_x['updated_at'].isnull(), 'is_empty'] = True
+        df_x.loc[~df_x['last_month'].isnull(), 'is_empty'] = False
 
     df_x = df_x[
         df_x['updated_at'].isnull() |
@@ -146,8 +149,10 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
 
                 # Dataset overview
                 total_rows = len(df)
-                updated_rows = len(df[df['updated_at'].notna()])
-                non_empty_rows = len(df[(~df['is_empty']) & df['updated_at'].notna()])
+                df_notna = df[df['updated_at'].notna()]
+                updated_rows = len(df_notna)
+                df_non_empty = df_notna[(~df_notna['is_empty']) & df_notna['updated_at'].notna()]
+                non_empty_rows = len(df_non_empty)
 
                 print('## Dataset Overview', file=f)
                 print('', file=f)
@@ -174,7 +179,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 # Sample data
                 print('## Sample Data', file=f)
                 print('', file=f)
-                sample_df = df.head(20)[['name', 'last_day', 'last_week', 'last_month', 'is_empty']]
+                sample_df = df_non_empty.head(20)[['name', 'last_day', 'last_week', 'last_month', 'is_empty']]
                 print('First 20 packages:', file=f)
                 print('', file=f)
                 print(sample_df.to_markdown(index=False), file=f)
@@ -182,7 +187,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
 
                 # Top packages by downloads
                 if non_empty_rows > 0:
-                    top_df = df[(~df['is_empty']) & df['updated_at'].notna()].nlargest(20, 'last_month')[
+                    top_df = df_non_empty.nlargest(20, 'last_month')[
                         ['name', 'last_day', 'last_week', 'last_month']]
                     print('## Top 20 Packages by Monthly Downloads', file=f)
                     print('', file=f)
@@ -190,7 +195,7 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                     print('', file=f)
 
                     # Statistics
-                    stats_df = df[(~df['is_empty']) & df['updated_at'].notna()]
+                    stats_df = df_non_empty
                     if len(stats_df) > 0:
                         print('## Download Statistics', file=f)
                         print('', file=f)
