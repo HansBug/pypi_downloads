@@ -4,6 +4,7 @@ import time
 from threading import Lock
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from hbutils.concurrent import parallel_call
@@ -110,6 +111,102 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
     last_saved_at = None
     lock = Lock()
 
+    def _generate_charts(df_non_empty, upload_dir):
+        """Generate distribution charts for download statistics"""
+        plt.style.use('default')
+        plt.rcParams['figure.facecolor'] = 'white'
+
+        # Set up the figure with subplots
+        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+        fig.suptitle('PyPI Package Download Distribution Analysis', fontsize=16, fontweight='bold')
+
+        periods = ['last_day', 'last_week', 'last_month']
+        period_labels = ['Daily Downloads', 'Weekly Downloads', 'Monthly Downloads']
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+        for i, (period, label, color) in enumerate(zip(periods, period_labels, colors)):
+            data = df_non_empty[period].dropna()
+            data = data[data > 0]  # Remove zero values for log scale
+
+            if len(data) == 0:
+                continue
+
+            # Log-scale histogram (top row)
+            ax_hist = axes[0, i]
+            log_data = np.log10(data)
+            ax_hist.hist(log_data, bins=50, alpha=0.7, color=color, edgecolor='black', linewidth=0.5)
+            ax_hist.set_xlabel('Log₁₀(Downloads)')
+            ax_hist.set_ylabel('Number of Packages')
+            ax_hist.set_title(f'{label} Distribution (Log Scale)')
+            ax_hist.grid(True, alpha=0.3)
+
+            # Add percentile annotations
+            percentiles = [50, 90, 95, 99]
+            for p in percentiles:
+                pct_val = np.percentile(data, p)
+                ax_hist.axvline(np.log10(pct_val), color='red', linestyle='--', alpha=0.7)
+                ax_hist.text(np.log10(pct_val), ax_hist.get_ylim()[1] * 0.8,
+                             f'P{p}\n{pct_val:,.0f}',
+                             rotation=90, ha='right', va='top', fontsize=8)
+
+            # Cumulative distribution (bottom row)
+            ax_cum = axes[1, i]
+            sorted_data = np.sort(data)
+            cumulative = np.arange(1, len(sorted_data) + 1) / len(sorted_data) * 100
+            ax_cum.semilogx(sorted_data, cumulative, color=color, linewidth=2)
+            ax_cum.set_xlabel('Downloads (Log Scale)')
+            ax_cum.set_ylabel('Cumulative Percentage (%)')
+            ax_cum.set_title(f'{label} Cumulative Distribution')
+            ax_cum.grid(True, alpha=0.3)
+            ax_cum.set_xlim(left=1)
+
+            # Add key statistics as text
+            stats_text = f'Total: {data.sum():,}\nMean: {data.mean():.0f}\nMedian: {data.median():.0f}\nMax: {data.max():,}'
+            ax_cum.text(0.02, 0.98, stats_text, transform=ax_cum.transAxes,
+                        verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
+                        fontsize=9)
+
+        plt.tight_layout()
+        chart_path = os.path.join(upload_dir, 'download_distribution.png')
+        plt.savefig(chart_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+
+        # Generate a separate chart for top packages comparison
+        fig, ax = plt.subplots(1, 1, figsize=(14, 10))
+
+        # Get top 20 packages by monthly downloads
+        top_packages = df_non_empty.nlargest(20, 'last_month')
+
+        x = np.arange(len(top_packages))
+        width = 0.25
+
+        bars1 = ax.bar(x - width, top_packages['last_day'], width, label='Daily', color='#1f77b4', alpha=0.8)
+        bars2 = ax.bar(x, top_packages['last_week'], width, label='Weekly', color='#ff7f0e', alpha=0.8)
+        bars3 = ax.bar(x + width, top_packages['last_month'], width, label='Monthly', color='#2ca02c', alpha=0.8)
+
+        ax.set_xlabel('Package Name')
+        ax.set_ylabel('Downloads (Log Scale)')
+        ax.set_title('Top 20 PyPI Packages by Download Volume')
+        ax.set_xticks(x)
+        ax.set_xticklabels(top_packages['name'], rotation=45, ha='right')
+        ax.legend()
+        ax.set_yscale('log')
+        ax.grid(True, alpha=0.3)
+
+        # Add value labels on bars (only for monthly downloads to avoid clutter)
+        for i, bar in enumerate(bars3):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2., height,
+                    f'{height:,.0f}',
+                    ha='center', va='bottom', fontsize=8, rotation=90)
+
+        plt.tight_layout()
+        top_packages_path = os.path.join(upload_dir, 'top_packages.png')
+        plt.savefig(top_packages_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+
+        return ['download_distribution.png', 'top_packages.png']
+
     def _deploy(force=False):
         nonlocal has_update, last_saved_at
         if not has_update:
@@ -123,6 +220,19 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
             df = pd.DataFrame(list(d_records.values()))
             df = df.sort_values(by=['name'], ascending=[True])
             df.to_parquet(dst_parquet_file, index=False)
+
+            # Dataset overview
+            total_rows = len(df)
+            df_notna = df[df['updated_at'].notna()]
+            with_data_rows = len(df_notna)
+            df_non_empty = df_notna[df_notna['status'] == 'valid']
+            non_empty_rows = len(df_non_empty)
+
+            # Generate charts
+            chart_files = []
+            if non_empty_rows > 0:
+                logging.info('Generating distribution charts...')
+                chart_files = _generate_charts(df_non_empty, upload_dir)
 
             with open(os.path.join(upload_dir, 'README.md'), 'w') as f:
                 print('---', file=f)
@@ -149,13 +259,6 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                       'providing insights into package popularity and usage trends.', file=f)
                 print('', file=f)
 
-                # Dataset overview
-                total_rows = len(df)
-                df_notna = df[df['updated_at'].notna()]
-                with_data_rows = len(df_notna)
-                df_non_empty = df_notna[df_notna['status'] == 'valid']
-                non_empty_rows = len(df_non_empty)
-
                 print('## Dataset Overview', file=f)
                 print('', file=f)
                 print(f'- **Total packages**: {total_rows:,}', file=f)
@@ -178,6 +281,37 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
                 print('| status | string | Whether the package has no download data (null, empty, valid) |', file=f)
                 print('| updated_at | float | Unix timestamp of last update |', file=f)
                 print('', file=f)
+
+                # Distribution Analysis Charts
+                if chart_files and non_empty_rows > 0:
+                    print('## Download Distribution Analysis', file=f)
+                    print('', file=f)
+                    print('The following charts show the distribution of download statistics across all PyPI packages. '
+                          'As expected, the data exhibits a long-tail distribution where a small number of packages '
+                          'receive the majority of downloads.', file=f)
+                    print('', file=f)
+
+                    if 'download_distribution.png' in chart_files:
+                        print('### Distribution Overview', file=f)
+                        print('', file=f)
+                        print('![Download Distribution](download_distribution.png)', file=f)
+                        print('', file=f)
+                        print('**Top row**: Histogram showing the distribution of downloads on a logarithmic scale. '
+                              'The red dashed lines indicate key percentiles (P50, P90, P95, P99).', file=f)
+                        print('', file=f)
+                        print('**Bottom row**: Cumulative distribution showing what percentage of packages '
+                              'have downloads below a given threshold.', file=f)
+                        print('', file=f)
+
+                    if 'top_packages.png' in chart_files:
+                        print('### Top Packages Comparison', file=f)
+                        print('', file=f)
+                        print('![Top Packages](top_packages.png)', file=f)
+                        print('', file=f)
+                        print(
+                            'Comparison of daily, weekly, and monthly download volumes for the top 20 most downloaded packages.',
+                            file=f)
+                        print('', file=f)
 
                 # Sample data
                 print('## Sample Data', file=f)

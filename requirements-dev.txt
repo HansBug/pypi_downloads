@@ -7,3 +7,4 @@ pyquery
 random_user_agent
 hfutils
 pyarrow
+matplotlib
