@@ -1227,3 +1227,4 @@ fabric.properties
 !/pypi_downloads/utils/irregular_repo.json
 /venv*
 /.env*
+.llmconfig.yaml

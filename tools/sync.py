@@ -226,6 +226,8 @@ def sync(repository: str, proxy_pool: Optional[str] = None, deploy_span: float =
             df_notna = df[df['updated_at'].notna()]
             with_data_rows = len(df_notna)
             df_non_empty = df_notna[df_notna['status'] == 'valid']
+            for col in ['last_day', 'last_week', 'last_month']:
+                df_non_empty[col] = pd.to_numeric(df_non_empty[col], errors='coerce').astype('Int64')
             non_empty_rows = len(df_non_empty)
 
             # Generate charts
