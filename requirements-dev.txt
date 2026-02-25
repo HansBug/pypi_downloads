@@ -8,3 +8,4 @@ random_user_agent
 hfutils
 pyarrow
 matplotlib
+huggingface_hub
