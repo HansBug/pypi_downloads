@@ -111,11 +111,13 @@ class TestFreezeDataFrame:
         assert result is df
 
     def test_numpy_object_column_frozen(self):
-        # Explicitly force numpy object storage — newer pandas/pyarrow may
-        # infer string columns as ArrowStringArray (already immutable) instead.
+        # pandas 2.1+ with future.infer_string may store strings as ArrowStringArray
+        # (already immutable). Only assert flags when backing is actually numpy.
         df = pd.DataFrame({'name': np.array(['numpy', 'pandas'], dtype=object)})
         _freeze_dataframe(df)
-        assert not df['name'].values.flags.writeable
+        values = df['name'].values
+        if isinstance(values, np.ndarray):
+            assert not values.flags.writeable
 
     def test_numpy_float_column_frozen(self):
         df = pd.DataFrame({'val': [1.0, 2.0, 3.0]})
@@ -147,7 +149,9 @@ class TestFreezeDataFrame:
             'ratio': [0.5, 1.5],
         })
         _freeze_dataframe(df)
-        assert not df['name'].values.flags.writeable
+        name_vals = df['name'].values
+        if isinstance(name_vals, np.ndarray):  # numpy-backed; Arrow is already immutable
+            assert not name_vals.flags.writeable
         assert not df['count'].array._data.flags.writeable
         assert not df['ratio'].values.flags.writeable
 
