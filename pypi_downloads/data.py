@@ -152,21 +152,24 @@ def _load_cached() -> pd.DataFrame:
     return _freeze_dataframe(df)
 
 
-def load_data() -> pd.DataFrame:
+def load_data(writable: bool = False) -> pd.DataFrame:
     """
-    Load PyPI download statistics as a read-only cached DataFrame.
+    Load PyPI download statistics as a cached DataFrame.
 
     Reads ``downloads.parquet`` from the package directory on the first call;
     subsequent calls return the same in-memory object without re-reading the
-    file. The returned DataFrame is frozen (underlying NumPy arrays are set to
-    read-only) to prevent accidental mutation of the cached object. If you
-    need to modify the data, call :meth:`pandas.DataFrame.copy` on the result
-    first.
+    file.
 
     If the data file is absent (e.g., when running from a source checkout
     without having run ``make download_data``), an automatic download from
     HuggingFace Hub is attempted when ``huggingface_hub`` is installed.
 
+    :param writable: If ``False`` (default), return the shared cached
+        DataFrame whose underlying arrays are frozen (read-only).  If
+        ``True``, return a fully writable :meth:`~pandas.DataFrame.copy`
+        of the cached data; the copy is independent and may be modified
+        freely without affecting the cache.
+    :type writable: bool
     :return: DataFrame with columns ``name``, ``last_day``, ``last_week``,
         ``last_month``, containing download statistics for all valid PyPI
         packages.
@@ -180,5 +183,9 @@ def load_data() -> pd.DataFrame:
         >>> df = load_data()
         >>> df.columns.tolist()
         ['name', 'last_day', 'last_week', 'last_month']
+        >>> df_copy = load_data(writable=True)
+        >>> df_copy is df
+        False
     """
-    return _load_cached()
+    df = _load_cached()
+    return df.copy() if writable else df

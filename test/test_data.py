@@ -221,3 +221,27 @@ class TestLoadData:
             df1 = load_data()
             df2 = load_data()
         assert df1 is df2
+
+    def test_writable_false_returns_same_object(self, sample_parquet):
+        with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
+            df1 = load_data(writable=False)
+            df2 = load_data(writable=False)
+        assert df1 is df2
+
+    def test_writable_true_returns_copy(self, sample_parquet):
+        with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
+            df_frozen = load_data(writable=False)
+            df_copy = load_data(writable=True)
+        assert df_copy is not df_frozen
+
+    def test_writable_true_is_mutable(self, sample_parquet):
+        with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
+            df = load_data(writable=True)
+        df.loc[0, 'last_day'] = 99  # must not raise
+
+    def test_writable_true_does_not_affect_cache(self, sample_parquet):
+        with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
+            df_copy = load_data(writable=True)
+            df_copy.loc[0, 'last_day'] = 99
+            df_frozen = load_data(writable=False)
+        assert df_frozen['last_day'].tolist()[0] == 1000
