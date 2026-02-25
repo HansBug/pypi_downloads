@@ -100,6 +100,7 @@ jobs:
       - name: Run unittest
         env:
           CI: 'true'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         shell: bash
         run: |
           make download_data
