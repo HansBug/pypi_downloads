@@ -1,4 +1,4 @@
-.PHONY: docs test unittest tbuild
+.PHONY: docs test unittest tbuild download_data
 
 PYTHON ?= $(shell which python)
 
@@ -26,8 +26,14 @@ RST_NONM_FILES    := $(foreach file,${PYTHON_NONM_FILES},$(patsubst %/__init__.p
 
 COV_TYPES ?= xml term-missing
 
+DATA_FILE := ${SRC_DIR}/downloads.parquet
+HF_REPO   ?= HansBug/pypi_downloads
+
 package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
+
+download_data:
+	$(PYTHON) -c "import pandas as pd; from huggingface_hub import hf_hub_download; src = hf_hub_download('$(HF_REPO)', repo_type='dataset', filename='dataset.parquet'); df = pd.read_parquet(src); df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True); df.to_parquet('$(DATA_FILE)', index=False); print('Saved %d records to $(DATA_FILE)' % len(df))"
 
 test: unittest
 

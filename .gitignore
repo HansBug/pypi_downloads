@@ -1212,6 +1212,7 @@ fabric.properties
 /pypi_downloads/**/*.json
 /pypi_downloads/**/*.yaml
 /pypi_downloads/**/*.yml
+/pypi_downloads/downloads.parquet
 /extra
 /resource/yolort/*
 !/resource/yolort/Makefile
