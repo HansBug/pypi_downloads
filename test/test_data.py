@@ -111,7 +111,9 @@ class TestFreezeDataFrame:
         assert result is df
 
     def test_numpy_object_column_frozen(self):
-        df = pd.DataFrame({'name': ['numpy', 'pandas']})
+        # Explicitly force numpy object storage — newer pandas/pyarrow may
+        # infer string columns as ArrowStringArray (already immutable) instead.
+        df = pd.DataFrame({'name': np.array(['numpy', 'pandas'], dtype=object)})
         _freeze_dataframe(df)
         assert not df['name'].values.flags.writeable
 
@@ -140,7 +142,7 @@ class TestFreezeDataFrame:
 
     def test_mixed_dtypes(self):
         df = pd.DataFrame({
-            'name': ['numpy', 'pandas'],
+            'name': np.array(['numpy', 'pandas'], dtype=object),
             'count': pd.array([1, 2], dtype='Int64'),
             'ratio': [0.5, 1.5],
         })
@@ -173,7 +175,8 @@ class TestLoadCached:
     def test_result_is_frozen(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df = _load_cached()
-        assert not df['name'].values.flags.writeable
+        # int64 is always numpy-backed regardless of pandas/pyarrow version
+        assert not df['last_day'].values.flags.writeable
 
     def test_data_values_correct(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
@@ -206,7 +209,8 @@ class TestLoadData:
     def test_result_is_frozen(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df = load_data()
-        assert not df['name'].values.flags.writeable
+        # int64 is always numpy-backed regardless of pandas/pyarrow version
+        assert not df['last_day'].values.flags.writeable
 
     def test_caching_across_calls(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
