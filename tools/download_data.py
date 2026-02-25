@@ -19,10 +19,7 @@ import pandas as pd
 from huggingface_hub import hf_hub_download
 
 _DEFAULT_REPO = 'HansBug/pypi_downloads'
-_DEFAULT_OUTPUT = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'pypi_downloads', 'downloads.parquet',
-)
+_DEFAULT_OUTPUT = os.path.join('pypi_downloads', 'downloads.parquet')
 _INT_COLS = ['last_day', 'last_week', 'last_month']
 
 
