@@ -76,7 +76,7 @@ def _ensure_data_file() -> None:
     try:
         src = hf_hub_download(repo_id=_HF_REPO, repo_type='dataset', filename=_HF_FILENAME)
         df = pd.read_parquet(src)
-        df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True)
+        df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True).astype({'last_day': 'int64', 'last_week': 'int64', 'last_month': 'int64'})
         df.to_parquet(_DATA_FILE, index=False)
     except Exception as e:
         raise FileNotFoundError(

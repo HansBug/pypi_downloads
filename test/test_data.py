@@ -15,9 +15,9 @@ from pypi_downloads.data import (
 def _make_sample_df():
     return pd.DataFrame({
         'name': ['numpy', 'pandas', 'requests'],
-        'last_day': pd.array([1000, 2000, 300], dtype='Int64'),
-        'last_week': pd.array([7000, 14000, 2100], dtype='Int64'),
-        'last_month': pd.array([30000, 60000, 9000], dtype='Int64'),
+        'last_day': pd.array([1000, 2000, 300], dtype='int64'),
+        'last_week': pd.array([7000, 14000, 2100], dtype='int64'),
+        'last_month': pd.array([30000, 60000, 9000], dtype='int64'),
     })
 
 
@@ -95,6 +95,9 @@ class TestEnsureDataFile:
         result = pd.read_parquet(dst)
         assert list(result.columns) == ['name', 'last_day', 'last_week', 'last_month']
         assert set(result['name'].tolist()) == {'numpy', 'flask'}  # 'empty' filtered out
+        assert result['last_day'].dtype == np.int64
+        assert result['last_week'].dtype == np.int64
+        assert result['last_month'].dtype == np.int64
         mock_hf.hf_hub_download.assert_called_once_with(
             repo_id=_HF_REPO, repo_type='dataset', filename=_HF_FILENAME
         )

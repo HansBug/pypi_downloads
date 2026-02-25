@@ -35,7 +35,7 @@ package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
 
 download_data:
-	$(PYTHON) -c "import pandas as pd; from huggingface_hub import hf_hub_download; src = hf_hub_download('$(HF_REPO)', repo_type='dataset', filename='dataset.parquet'); df = pd.read_parquet(src); df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True); df.to_parquet('$(DATA_FILE)', index=False); print('Saved %d records to $(DATA_FILE)' % len(df))"
+	$(PYTHON) -c "import pandas as pd; from huggingface_hub import hf_hub_download; src = hf_hub_download('$(HF_REPO)', repo_type='dataset', filename='dataset.parquet'); df = pd.read_parquet(src); df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True).astype({'last_day': 'int64', 'last_week': 'int64', 'last_month': 'int64'}); df.to_parquet('$(DATA_FILE)', index=False); print('Saved %d records to $(DATA_FILE)' % len(df))"
 
 test: unittest
 

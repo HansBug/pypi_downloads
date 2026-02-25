@@ -103,6 +103,7 @@ jobs:
           CI: 'true'
         shell: bash
         run: |
+          make download_data
           make unittest IS_WIN=${{ env.IS_WIN }} IS_MAC=${{ env.IS_MAC }}
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
