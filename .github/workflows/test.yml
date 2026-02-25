@@ -21,11 +21,6 @@ jobs:
           - '3.11'
           - '3.12'
           - '3.13'
-        include:
-          - os: 'ubuntu-22.04'
-            python-version: '3.7'
-          - os: 'windows-2022'
-            python-version: '3.7'
 
     steps:
       - name: Get system version for Linux
@@ -87,8 +82,7 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-test.txt
+          pip install -r requirements.txt -r requirements-test.txt -r requirements-huggingface.txt
       - name: Test the basic environment
         shell: bash
         run: |
@@ -101,8 +95,10 @@ jobs:
       - name: Run unittest
         env:
           CI: 'true'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         shell: bash
         run: |
+          make download_data
           make unittest IS_WIN=${{ env.IS_WIN }} IS_MAC=${{ env.IS_MAC }}
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1

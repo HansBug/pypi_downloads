@@ -1,4 +1,4 @@
-.PHONY: docs test unittest tbuild
+.PHONY: docs test unittest tbuild download_data
 
 PYTHON ?= $(shell which python)
 
@@ -24,10 +24,18 @@ RST_DOC_FILES     := $(patsubst ${PYTHON_CODE_DIR}/%.py,${RST_DOC_DIR}/%.rst,${P
 PYTHON_NONM_FILES := $(shell find ${PYTHON_CODE_DIR} -name "__init__.py" 2>/dev/null)
 RST_NONM_FILES    := $(foreach file,${PYTHON_NONM_FILES},$(patsubst %/__init__.py,%/index.rst,$(patsubst ${PYTHON_CODE_DIR}/%,${RST_DOC_DIR}/%,$(patsubst ${PYTHON_CODE_DIR}/__init__.py,${RST_DOC_DIR}/index.rst,${file}))))
 
+AUTO_OPTIONS ?= --param max_tokens=400000 --no-ignore-module hbutils --model-name gpt-5.2-codex
+
 COV_TYPES ?= xml term-missing
+
+DATA_FILE := ${SRC_DIR}/downloads.parquet
+HF_REPO   ?= HansBug/pypi_downloads
 
 package:
 	$(PYTHON) -m build --sdist --wheel --outdir ${DIST_DIR}
+
+download_data:
+	$(PYTHON) -m tools.download_data --repo $(HF_REPO) --output $(DATA_FILE)
 
 test: unittest
 
@@ -45,7 +53,12 @@ docs:
 pdocs:
 	$(MAKE) -C "${DOC_DIR}" prod
 docs_auto:
-	python remake_docs_via_llm.py -i "${RANGE_SRC_DIR}"
+	python -m hbllmutils code pydoc -i "${RANGE_SRC_DIR}" ${AUTO_OPTIONS}
+todos_auto:
+	python -m hbllmutils code todo -i "${RANGE_SRC_DIR}" ${AUTO_OPTIONS}
+tests_auto:
+	python -m hbllmutils code unittest -i "${RANGE_SRC_DIR}" -o "${RANGE_SRC_DIR_TEST}" \
+		${AUTO_OPTIONS}
 rst_auto: ${RST_DOC_FILES} ${RST_NONM_FILES} auto_rst_top_index.py
 	python auto_rst_top_index.py -i ${PYTHON_CODE_DIR} -o ${DOC_DIR}/source/api_doc.rst
 ${RST_DOC_DIR}/%.rst: ${PYTHON_CODE_DIR}/%.py auto_rst.py Makefile

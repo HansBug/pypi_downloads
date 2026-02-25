@@ -1,7 +1,7 @@
 Installation
 ===================
 
-``pypi_downloads`` is currently hosted on PyPI. It required python >= 3.7.
+``pypi_downloads`` is currently hosted on PyPI. It required python >= 3.8.
 
 You can simply install pypi_downloads from PyPI with the following command:
 

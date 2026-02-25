@@ -36,9 +36,6 @@ python:
   install:
     - requirements: requirements.txt
     - requirements: requirements-doc.txt
-    - requirements: requirements-7z.txt
-    - requirements: requirements-rar.txt
-    - requirements: requirements-build.txt
-    - requirements: requirements-transfer.txt
+    - requirements: requirements-huggingface.txt
     - method: pip
       path: .

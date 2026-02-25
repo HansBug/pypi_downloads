@@ -10,4 +10,5 @@ pypi\_downloads
     :maxdepth: 3
 
     config/index
+    data
 

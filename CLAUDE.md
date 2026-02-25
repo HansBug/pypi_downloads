@@ -28,8 +28,10 @@ make unittest RANGE_DIR=config
 
 ### Building & Packaging
 ```bash
-make package   # Build sdist and wheel into dist/
-make clean     # Remove dist/, build/, *.egg-info
+make package        # Build sdist and wheel into dist/
+make clean          # Remove dist/, build/, *.egg-info
+make download_data  # Download & filter dataset.parquet from HF Hub → pypi_downloads/downloads.parquet
+                    # Override repo: make download_data HF_REPO=other/repo
 ```
 
 ### Docs
@@ -55,7 +57,13 @@ python tools/pypistats/recent.py
 ## Architecture
 
 ### Package (`pypi_downloads/`)
-The main installable package — currently minimal (just `config/meta.py` with version/author metadata). The CLI entry point is `pypi_downloads.entry:pypi_downloadscli`.
+The main installable package. Key modules:
+
+- **`config/meta.py`** — version/author metadata constants (used by `setup.py`)
+- **`data.py`** — public `load_data()` function that returns a cached, read-only DataFrame from `downloads.parquet`. Uses `@lru_cache` internally; the DataFrame's underlying numpy arrays are frozen (`flags.writeable = False`) to prevent mutation of the cache. If `downloads.parquet` is absent (source checkout), auto-downloads from HF Hub via `huggingface_hub` (optional dep); raises `FileNotFoundError` with remediation steps if unavailable.
+- **`downloads.parquet`** — pre-filtered data file (status=`valid`, columns: `name`, `last_day`, `last_week`, `last_month`). Ships in the package (listed in `MANIFEST.in` and `setup.py` `package_data`) but is **git-ignored** — must be generated via `make download_data` before packaging or running from source.
+
+The CLI entry point is `pypi_downloads.entry:pypi_downloadscli`.
 
 ### Tools (`tools/`)
 Scripts not part of the installable package, used for data collection and syncing:
