@@ -3,4 +3,5 @@
     :caption: API Documentation
 
     api_doc/config/index
+    api_doc/data
 
