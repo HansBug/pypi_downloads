@@ -188,16 +188,4 @@ def load_data(writable: bool = False) -> pd.DataFrame:
         False
     """
     df = _load_cached()
-    if not writable:
-        return df
-    # pandas 3.0+ Copy-on-Write: df.copy() may return a lazy copy whose
-    # underlying numpy arrays are still the same read-only objects.  Build an
-    # independent DataFrame by explicitly copying each column's data.
-    new_cols = {}
-    for col in df.columns:
-        arr = df[col].values
-        if isinstance(arr, np.ndarray):
-            new_cols[col] = arr.copy()
-        else:
-            new_cols[col] = df[col].copy()
-    return pd.DataFrame(new_cols)
+    return df.copy() if writable else df

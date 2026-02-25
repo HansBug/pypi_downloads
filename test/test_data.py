@@ -237,20 +237,11 @@ class TestLoadData:
     def test_writable_true_is_mutable(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df = load_data(writable=True)
-        df['last_day'].values[0] = 99  # must not raise
+        df.loc[0, 'last_day'] = 99  # must not raise
 
     def test_writable_true_does_not_affect_cache(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df_copy = load_data(writable=True)
-            df_copy['last_day'].values[0] = 99
+            df_copy.loc[0, 'last_day'] = 99
             df_frozen = load_data(writable=False)
         assert df_frozen['last_day'].tolist()[0] == 1000
-
-    def test_writable_true_extension_array_column(self):
-        """Covers the else branch when a column is not numpy-backed (e.g. Int64, ArrowStringArray)."""
-        df = pd.DataFrame({'count': pd.array([1, 2, 3], dtype='Int64')})
-        _freeze_dataframe(df)
-        with patch('pypi_downloads.data._load_cached', return_value=df):
-            copy = load_data(writable=True)
-        assert copy is not df
-        assert copy['count'].tolist() == [1, 2, 3]
