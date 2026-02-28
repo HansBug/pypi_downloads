@@ -45,16 +45,17 @@ make docs_auto # Regenerate docs via LLM (uses remake_docs_via_llm.py)
 ### Running Tools Directly
 ```bash
 # Sync PyPI download data to HuggingFace dataset
-python tools/sync.py   # Requires PP_URL env var for proxy pool
+python -m tools.sync   # Requires PP_URL env var for proxy pool
 
 # Download & filter dataset from HF Hub (same as make download_data)
-python tools/download_data.py
+python -m tools.download_data
+python -m tools.download_data --repo other/repo --output /path/to/out.parquet
 
 # Fetch PyPI package index
-python tools/pypi.py
+python -m tools.pypi
 
 # Fetch recent stats for a specific package
-python tools/pypistats/recent.py
+python -m tools.pypistats.recent
 ```
 
 ## Architecture
@@ -65,6 +66,7 @@ The main installable package. Key modules:
 - **`config/meta.py`** — version/author metadata constants (used by `setup.py`)
 - **`data.py`** — public `load_data()` function that returns a cached, read-only DataFrame from `downloads.parquet`. Uses `@lru_cache` internally; the DataFrame's underlying numpy arrays are frozen (`flags.writeable = False`) to prevent mutation of the cache. If `downloads.parquet` is absent (source checkout), auto-downloads from HF Hub via `huggingface_hub` (optional dep); raises `FileNotFoundError` with remediation steps if unavailable.
 - **`downloads.parquet`** — pre-filtered data file (status=`valid`, columns: `name`, `last_day`, `last_week`, `last_month`). Ships in the package (listed in `MANIFEST.in` and `setup.py` `package_data`) but is **git-ignored** — must be generated via `make download_data` before packaging or running from source.
+- **`__init__.py`** — package entry point that exports `load_data()` and `__version__` for public API
 
 The CLI entry point is `pypi_downloads.entry:pypi_downloadscli` (note: `entry.py` is not yet implemented).
 
@@ -84,7 +86,7 @@ Scripts not part of the installable package, used for data collection and syncin
 5. Periodically upload updated Parquet + README + charts to HF Hub dataset
 
 ### Test Structure (`test/`)
-Tests mirror the `pypi_downloads/` package structure. Test classes use `@pytest.mark.unittest`. The `make unittest` target sets `UNITTEST=1` env var.
+Tests mirror the `pypi_downloads/` package structure. Test classes use `@pytest.mark.unittest`. The `make unittest` target sets `UNITTEST=1` env var. Test timeout is configured to 300 seconds in `pytest.ini`.
 
 ## Key Dependencies
 - **`hfutils`** — HuggingFace upload/download utilities
@@ -93,3 +95,4 @@ Tests mirror the `pypi_downloads/` package structure. Test classes use `@pytest.
 - **`matplotlib`** — Chart generation for the HF dataset README
 - **`pyquery`** / **`requests`** — HTML parsing and HTTP requests
 - **`random_user_agent`** — Rotating user agents to avoid rate limiting
+- **`huggingface_hub`** — Optional dependency for auto-downloading data file when missing
