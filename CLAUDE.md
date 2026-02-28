@@ -47,6 +47,9 @@ make docs_auto # Regenerate docs via LLM (uses remake_docs_via_llm.py)
 # Sync PyPI download data to HuggingFace dataset
 python tools/sync.py   # Requires PP_URL env var for proxy pool
 
+# Download & filter dataset from HF Hub (same as make download_data)
+python tools/download_data.py
+
 # Fetch PyPI package index
 python tools/pypi.py
 
@@ -63,7 +66,7 @@ The main installable package. Key modules:
 - **`data.py`** — public `load_data()` function that returns a cached, read-only DataFrame from `downloads.parquet`. Uses `@lru_cache` internally; the DataFrame's underlying numpy arrays are frozen (`flags.writeable = False`) to prevent mutation of the cache. If `downloads.parquet` is absent (source checkout), auto-downloads from HF Hub via `huggingface_hub` (optional dep); raises `FileNotFoundError` with remediation steps if unavailable.
 - **`downloads.parquet`** — pre-filtered data file (status=`valid`, columns: `name`, `last_day`, `last_week`, `last_month`). Ships in the package (listed in `MANIFEST.in` and `setup.py` `package_data`) but is **git-ignored** — must be generated via `make download_data` before packaging or running from source.
 
-The CLI entry point is `pypi_downloads.entry:pypi_downloadscli`.
+The CLI entry point is `pypi_downloads.entry:pypi_downloadscli` (note: `entry.py` is not yet implemented).
 
 ### Tools (`tools/`)
 Scripts not part of the installable package, used for data collection and syncing:
