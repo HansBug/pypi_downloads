@@ -1,0 +1,121 @@
+name: Auto Release
+
+on:
+  workflow_dispatch:  # Manual trigger
+#  schedule:
+#    - cron: '0 0 * * 0'  # Weekly on Sunday at 00:00 UTC
+
+jobs:
+  auto-release:
+    name: Auto release with latest data
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.repository == 'hansbug/pypi_downloads' }}
+    strategy:
+      matrix:
+        os:
+          - 'ubuntu-latest'
+        python-version:
+          - '3.8'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 20
+          submodules: 'recursive'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install --upgrade flake8 setuptools wheel twine
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-test.txt ]; then pip install -r requirements-test.txt; fi
+          if [ -f requirements-huggingface.txt ]; then pip install -r requirements-huggingface.txt; fi
+          pip install --upgrade build
+
+      - name: Download latest data from HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          make download_data
+
+      - name: Update version number to current date
+        run: |
+          make update_version
+
+      - name: Get version number
+        id: get_version
+        run: |
+          VERSION=$(python -c "from pypi_downloads.config.meta import __VERSION__; print(__VERSION__)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Run unittest
+        env:
+          CI: 'true'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          make unittest
+
+      - name: Build packages
+        run: |
+          python -m build --sdist --wheel --outdir dist/
+
+      - name: Commit version changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add pypi_downloads/config/meta.py
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.get_version.outputs.version }}"
+
+      - name: Create and push tag
+        run: |
+          git tag -a "v${{ steps.get_version.outputs.version }}" -m "Auto release v${{ steps.get_version.outputs.version }}"
+          git push origin "v${{ steps.get_version.outputs.version }}"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Release v${{ steps.get_version.outputs.version }}
+          body: |
+            Auto-generated release with PyPI download statistics data.
+
+            Data updated: ${{ steps.get_version.outputs.version }}
+
+            ## Installation
+            ```bash
+            pip install pypi_downloads==${{ steps.get_version.outputs.version }}
+            ```
+
+            ## Usage
+            ```python
+            from pypi_downloads import load_data
+            df = load_data()
+            print(df.head())
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          password: ${{ secrets.PYPI_PASSWORD }}
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: v${{ steps.get_version.outputs.version }}
+          overwrite: true
+          file_glob: true
