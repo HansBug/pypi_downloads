@@ -18,6 +18,7 @@ def _make_sample_df():
         'last_day': pd.array([1000, 2000, 300], dtype='int64'),
         'last_week': pd.array([7000, 14000, 2100], dtype='int64'),
         'last_month': pd.array([30000, 60000, 9000], dtype='int64'),
+        'updated_at': [1.0e9, 1.1e9, 1.2e9],
     })
 
 
@@ -93,11 +94,12 @@ class TestEnsureDataFile:
         # Assertions outside patches so os.path.exists is unpatched
         assert os.path.exists(dst)
         result = pd.read_parquet(dst)
-        assert list(result.columns) == ['name', 'last_day', 'last_week', 'last_month']
+        assert list(result.columns) == ['name', 'last_day', 'last_week', 'last_month', 'updated_at']
         assert set(result['name'].tolist()) == {'numpy', 'flask'}  # 'empty' filtered out
         assert result['last_day'].dtype == np.int64
         assert result['last_week'].dtype == np.int64
         assert result['last_month'].dtype == np.int64
+        assert result['updated_at'].dtype == np.float64
         mock_hf.hf_hub_download.assert_called_once_with(
             repo_id=_HF_REPO, repo_type='dataset', filename=_HF_FILENAME
         )
@@ -167,7 +169,7 @@ class TestLoadCached:
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df = _load_cached()
         assert isinstance(df, pd.DataFrame)
-        assert list(df.columns) == ['name', 'last_day', 'last_week', 'last_month']
+        assert list(df.columns) == ['name', 'last_day', 'last_week', 'last_month', 'updated_at']
         assert len(df) == 3
 
     def test_caching_returns_same_instance(self, sample_parquet):
@@ -202,7 +204,7 @@ class TestLoadData:
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
             df = load_data()
         assert isinstance(df, pd.DataFrame)
-        assert list(df.columns) == ['name', 'last_day', 'last_week', 'last_month']
+        assert list(df.columns) == ['name', 'last_day', 'last_week', 'last_month', 'updated_at']
 
     def test_same_object_as_load_cached(self, sample_parquet):
         with patch('pypi_downloads.data._DATA_FILE', sample_parquet):
