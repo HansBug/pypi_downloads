@@ -1,4 +1,4 @@
-.PHONY: docs test unittest tbuild download_data
+.PHONY: docs test unittest tbuild download_data update_version
 
 PYTHON ?= $(shell which python)
 
@@ -36,6 +36,9 @@ package:
 
 download_data:
 	$(PYTHON) -m tools.download_data --repo $(HF_REPO) --output $(DATA_FILE)
+
+update_version:
+	$(PYTHON) -m tools.update_version
 
 test: unittest
 
