@@ -21,6 +21,7 @@ from huggingface_hub import hf_hub_download
 _DEFAULT_REPO = 'HansBug/pypi_downloads'
 _DEFAULT_OUTPUT = os.path.join('pypi_downloads', 'downloads.parquet')
 _INT_COLS = ['last_day', 'last_week', 'last_month']
+_FLOAT_COLS = ['updated_at']
 
 
 def download_data(repo: str = _DEFAULT_REPO, output: str = _DEFAULT_OUTPUT) -> None:
@@ -34,9 +35,9 @@ def download_data(repo: str = _DEFAULT_REPO, output: str = _DEFAULT_OUTPUT) -> N
     src = hf_hub_download(repo_id=repo, repo_type='dataset', filename='dataset.parquet')
     df = pd.read_parquet(src)
     df = (
-        df[df['status'] == 'valid'][['name'] + _INT_COLS]
+        df[df['status'] == 'valid'][['name'] + _INT_COLS + _FLOAT_COLS]
         .reset_index(drop=True)
-        .astype({col: 'int64' for col in _INT_COLS})
+        .astype({**{col: 'int64' for col in _INT_COLS}, **{col: 'float64' for col in _FLOAT_COLS}})
     )
     os.makedirs(os.path.dirname(output), exist_ok=True)
     df.to_parquet(output, index=False)

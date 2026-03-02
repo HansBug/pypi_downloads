@@ -18,8 +18,8 @@ Example::
     >>> from pypi_downloads.data import load_data
     >>> df = load_data()
     >>> df.head()
-           name  last_day  last_week  last_month
-    0  example     12345     67890      135790
+           name  last_day  last_week  last_month  updated_at
+    0  example     12345     67890      135790  1234567890.0
 
 """
 
@@ -76,7 +76,7 @@ def _ensure_data_file() -> None:
     try:
         src = hf_hub_download(repo_id=_HF_REPO, repo_type='dataset', filename=_HF_FILENAME)
         df = pd.read_parquet(src)
-        df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month']].reset_index(drop=True).astype({'last_day': 'int64', 'last_week': 'int64', 'last_month': 'int64'})
+        df = df[df['status'] == 'valid'][['name', 'last_day', 'last_week', 'last_month', 'updated_at']].reset_index(drop=True).astype({'last_day': 'int64', 'last_week': 'int64', 'last_month': 'int64', 'updated_at': 'float64'})
         df.to_parquet(_DATA_FILE, index=False)
     except Exception as e:
         raise FileNotFoundError(
@@ -171,7 +171,7 @@ def load_data(writable: bool = False) -> pd.DataFrame:
         freely without affecting the cache.
     :type writable: bool
     :return: DataFrame with columns ``name``, ``last_day``, ``last_week``,
-        ``last_month``, containing download statistics for all valid PyPI
+        ``last_month``, ``updated_at``, containing download statistics for all valid PyPI
         packages.
     :rtype: pandas.DataFrame
     :raises FileNotFoundError: If ``downloads.parquet`` is missing and cannot
@@ -182,7 +182,7 @@ def load_data(writable: bool = False) -> pd.DataFrame:
         >>> from pypi_downloads.data import load_data
         >>> df = load_data()
         >>> df.columns.tolist()
-        ['name', 'last_day', 'last_week', 'last_month']
+        ['name', 'last_day', 'last_week', 'last_month', 'updated_at']
         >>> df_copy = load_data(writable=True)
         >>> df_copy is df
         False
